@@ -8,7 +8,7 @@ run.nowcast<-function(nowdata,what.2.get='NowCast'){
 
 nowdata$LST <- as.POSIXct(nowdata$LST, tz = "UTC", format = "%m/%d/%Y %H:%M")
 
-nowcast.res<-rollapply(1:nrow(nowdata),337,align='right',fill='NA',function(i){
+nowcast.res<-rollapply(1:nrow(nowdata),336,align='right',fill='NA',function(i){
 
 tdata<-nowdata[i,c('Value','LST')]
 rowcount <- sum(!is.na(tdata$Value));
