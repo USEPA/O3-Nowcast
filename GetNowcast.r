@@ -27,7 +27,7 @@ if(rowcount == 0) {
         curr.message<-paste("Meets 75% completeness, but missing current hour.  Use previous hour NowCast value instead; ", previousHour)
         # retrieve previous hour's data
         if (!op.mode){airIndexData<-data.frame()}
-        if (op.mode){airIndexData <- sqlExecute(mycon, "EXEC import.DataAirIndex_GetByDataStreamLST ?, ?", list(dataStreamId, previousHour), fetch=TRUE, errors=TRUE)}; 
+        if (op.mode){airIndexData <- GetEarlierHour(mycon,dataStreamId,previousHour)}; 
       airIndexValue = NA;
       if(nrow(airIndexData) > 0) {
         airIndexValue = airIndexData$AirIndexValue
@@ -43,8 +43,7 @@ if(rowcount == 0) {
       
       # retrieve previous hour's data
         if (!op.mode){airIndexData<-data.frame()}
-        if (op.mode){airIndexData <- sqlExecute(mycon, "EXEC import.DataAirIndex_GetByDataStreamLST ?, ?", list(dataStreamId, dt), fetch=TRUE, errors=TRUE)}; 
-      
+        if (op.mode){airIndexData <- GetEarlierHour(mycon,dataStreamId,dt)}; 
       airIndexValue = NA;
       if(nrow(airIndexData) > 0) {
         airIndexValue = airIndexData$AirIndexValue
@@ -84,7 +83,7 @@ if(rowcount == 0) {
 #print(curr.message)
 
 ## Add message to stored data if possible, comment out the line below if not.
-out_df<-data.frame(out_df,Message=curr.message)
+out_df<-data.frame(out_df,Message=curr.message,stringsAsFactors=F)
 
 return(out_df)
 }
