@@ -3,8 +3,10 @@
 
 run.nowcast<-function(nowdata,what.2.get='NowCast'){
 # data should be a data.frame with a least "Value" and "LST" columns
-# LST should be some kind of POSIXlt format
-#data$LST<-strptime(data$LST,format='%Y-%m-%d %H:%M:%S')
+# order nowdata by LST prior to applying this function
+
+# LST column should be some kind of POSIXlt format
+# Character in the form of %Y-%m-%d %H:%M:%S also works
 
 nowdata$LST <- as.POSIXct(nowdata$LST, tz = "UTC", format = "%m/%d/%Y %H:%M")
 
