@@ -1,5 +1,3 @@
-# New version from Nathan that's supposed to fix a lagging error created in the old version
-
 # import libraries
 library(plyr)
 library(zoo)
@@ -111,7 +109,7 @@ pls.nowcast <-
         FUN = function(x) {
           perc.missing <- length(grep(T, is.na(x))) / length(x)
           res <- NA
-          if (perc.missing < 0.25) {
+          if (perc.missing <= 0.25) {
             res <- mean(x, na.rm = T)
           }
           return(res)
@@ -142,17 +140,21 @@ generateSurrogate<-function(tdata) {
   slope <- 0.85;  
   intercept <- 4.5;
   surrogateValue = NA;
+  methodID = 8;
   
-  if(!is.na(tail(tdata,1)$Value)) { 
+  if(!is.na(tail(tdata,1)$Value[1])) { 
     # use current hour if not null
-    surrogateValue = tail(tdata,1)$Value * slope + intercept
-  } else if(!is.na(tail(tdata,2)$Value)) {
+    surrogateValue = tail(tdata,1)$Value[1] * slope + intercept
+	  methodID <- 3;
+  } else if(!is.na(tail(tdata,2)$Value[1])) {
     # use previous hour if not null
-    surrogateValue = tail(tdata,1)$Value * slope + intercept
-  } else if(!is.na(tail(tdata,3)$Value)) {
-    surrogateValue = tail(tdata,1)$Value * slope + intercept
-  }
-  return(surrogateValue);
+    surrogateValue = tail(tdata,2)$Value[1] * slope + intercept
+	  methodID <- 5
+  } else if(!is.na(tail(tdata,3)$Value[1])) {
+    surrogateValue = tail(tdata,3)$Value[1] * slope + intercept
+	  methodID <- 7
+  } 
+  return(list(surrogateValue=surrogateValue, methodID=methodID));
 }
 
 # New from AR on 4/24/19
