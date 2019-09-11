@@ -10,17 +10,22 @@ GetNowcast<-function(tdata,rowcount,dataStreamId,rowCountToUseSurrogate=252,op.m
 # if all values are null, then a NowCast value cannot be generated
 if(rowcount == 0) {
     curr.message<-"all values are null. return null"
-    out_df = data.frame(DataStreamID = NA, Date = NA, NowCast = NA)
+    out_df = data.frame(DataStreamID = NA, Date = NA, NowCast = NA, MethodID = 8)
 } else if (rowcount < rowCountToUseSurrogate) {
-   curr.message<-"does not meet 75% completeness criteria.  Using surrogate instead."
-    out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST),NowCast = generateSurrogate(tdata));
+	curr.message<-"does not meet 75% completeness criteria.  Using surrogate instead."
+	surrogateData <- generateSurrogate(tdata)
+	print(surrogateData)
+  out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST),NowCast = surrogateData$surrogateValue, MethodID = surrogateData$methodID);
   } else if (get.max.na.stream(tdata$Value) > 7) { ## New condition from AR 4/24/19
    curr.message<-"too many consecutive missing values.  Using surrogate instead."
-   out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST),NowCast = generateSurrogate(tdata)); 
+   surrogateData <- generateSurrogate(tdata)
+   print(surrogateData)
+   out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST),NowCast = surrogateData$surrogateValue, MethodID = surrogateData$methodID); 
+   
   } else if(sum(as.numeric(tdata$Value), na.rm = TRUE) == 0) { 
     curr.message<-"all values are 0; returning 0 as nowcast value."
     # this usually indicates a bad instrument, but it can happen
-    out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = 0);
+    out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = 0, MethodID = 1);
   } else if(is.na(tdata[nrow(tdata)-0,]$Value)) { # current hour is null
       if(!is.na(tdata[nrow(tdata)-1,]$Value)){ #try to use previous hour
         previousHour = tdata[nrow(tdata)-1,]$LST
@@ -34,7 +39,7 @@ if(rowcount == 0) {
       } else {
         curr.message<-"No Value returned."
       }
-      out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = airIndexValue);
+      out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = airIndexValue, MethodID = 4);
     }
     else if(!is.na(tdata[nrow(tdata)-2,]$Value)) {
       # use value from 2 hours previous
@@ -50,37 +55,39 @@ if(rowcount == 0) {
       } else {
         curr.message<-"No Value returned."
       }
-      out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = airIndexValue);
+      out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = airIndexValue, MethodID = 6);
     } 
     else {
       curr.message<-"No value from previous three hours.  Returning NULL"
-      out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = NA);
+      out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = NA, MethodID = 8);
     }
   } else {
     # Generate a NowCast value
     curr.message<-"Nowcast generated through the PLS method."
     tnowcast <- c()
+    methodID <- 2
     for (i in 1:(nrow(tdata)-335)) {
       tpred <- pls.nowcast(tdata$Value[i:(i+335)])
       tnowcast <- c(tnowcast, tpred[!is.na(tpred)])
     }
-    
     # Check that NowCast value was generated correctly.
-    if(is.na(tnowcast[length(tnowcast)])) {
+    if(length(tnowcast) == 0) {
       curr.message<-"Failed to generate a NowCast value."
       tnowcast <- NA;
+      methodID <- 8;
     } else if(tnowcast[length(tnowcast)] < 0) {
     curr.message<-"Nowcast was < 0, returning 0."
       #return 0 if generated NowCast value is less than 0
       tnowcast <- 0;
+      methodID <- 1;
     } else {
       tnowcast <- tnowcast[length(tnowcast)];
     }
     
-    out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = tnowcast);
+    out_df <- data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST), NowCast = tnowcast, MethodID = methodID);
   }
 
-#print(curr.message)
+print(curr.message)
 
 ## Add message to stored data if possible, comment out the line below if not.
 out_df<-data.frame(out_df,Message=curr.message,stringsAsFactors=F)
