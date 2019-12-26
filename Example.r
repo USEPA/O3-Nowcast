@@ -1,4 +1,4 @@
- 
+
 # define calculation functions, including PLS
 source("NowcastFun_Upd.r")
 
