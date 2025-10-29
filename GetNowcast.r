@@ -1,11 +1,17 @@
 # Decision tree to figure out which path to take for creating a Nowcast based on data completeness & # of 0's.  
 
-GetNowcast<-function(tdata,rowcount,dataStreamId,rowCountToUseSurrogate=252,op.mode=F){
+GetNowcast<-function(tdata,rowcount,dataStreamId,rowCountToUseSurrogate=252,op.mode=T,pls.window=96){
 # op.mode:  set to F for testing on local computeres; T for public reporting based on data from the AirNow database
 
-#rowCountToUseSurrogate <- 252; # 75% completeness
-  
-#print(paste('DataStreamID =', dataStreamId, 'LST =', max(tdata$LST), 'TotalRowCount =', nrow(tdata), 'NumRowsWithData =', rowcount));
+#### 10/12/21:  moving 8-hour mean calculation and related completeness test to here
+rolling.mean.data <- rollapply(tdata$Value, list(-4:3), fill = 'NA', align = 'center', FUN = function(x) {
+          perc.missing <- length(grep(T, is.na(x))) / length(x)
+          res <- NA
+          if (perc.missing <= 0.25) {res <- mean(x, na.rm = T)}
+          return(res)});
+
+perc.miss.rollmean<-length(grep(T,is.na(rolling.mean.data[-c(1:(pls.window-1))])))/length(rolling.mean.data[-c(1:(pls.window-1))])
+####
   
 # if all values are null, then a NowCast value cannot be generated
 if(rowcount == 0) {
@@ -21,6 +27,14 @@ if(rowcount == 0) {
    surrogateData <- generateSurrogate(tdata)
    print(surrogateData)
    out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST),NowCast = surrogateData$surrogateValue, MethodID = surrogateData$methodID); 
+
+### 10/12/21 adding the condition for the completeness of the 8-hour means
+  } else if (perc.miss.rollmean>0.25) { 
+   curr.message<-"too many consecutive missing 8-hour mean values.  Using surrogate instead."
+   surrogateData <- generateSurrogate(tdata)
+   print(surrogateData)
+   out_df = data.frame(DataStreamID = dataStreamId, Date = max(tdata$LST),NowCast = surrogateData$surrogateValue, MethodID = surrogateData$methodID); 
+########   
    
   } else if(sum(as.numeric(tdata$Value), na.rm = TRUE) == 0) { 
     curr.message<-"all values are 0; returning 0 as nowcast value."
@@ -67,7 +81,7 @@ if(rowcount == 0) {
     tnowcast <- c()
     methodID <- 2
     for (i in 1:(nrow(tdata)-335)) {
-      tpred <- pls.nowcast(tdata$Value[i:(i+335)])
+      tpred <- pls.nowcast(tdata$Value[i:(i+335)],rolling.mean.data=rolling.mean.data,pls.window=pls.window)
       tnowcast <- c(tnowcast, tpred[!is.na(tpred)])
     }
     # Check that NowCast value was generated correctly.
